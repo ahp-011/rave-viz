@@ -24,7 +24,7 @@ const state = {
 
 // ── renderer ──────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.autoClear = false;
 document.body.appendChild(renderer.domElement);
 const post = new Post(renderer);
@@ -206,7 +206,7 @@ function frame(nowMs) {
   for (const key in fx) fx[key] += (active.fx[key] - fx[key]) * ke;
   const fxNow = {
     ...fx,
-    zoom: fx.zoom * (1 + f.bass * 1.5) + f.beatPulse * 0.006,
+    zoom: fx.zoom * (1 + f.bass * 1.5) + f.beatPulse * 0.002,
     rotate: fx.rotate * (1 + f.lowMid * 2),
     hueShift: fx.hueShift * (1 + f.energy * 2),
   };
@@ -215,7 +215,7 @@ function frame(nowMs) {
     active.update(f, dt, t, analyzer);
     post.render(active.scene, active.camera, fxNow, {
       time: t, glitch, flash, kaleido: kaleidoMix, bass: f.bass,
-      chroma: 0.002 + 0.01 * f.beatPulse + 0.004 * f.treble + 0.012 * glitch,
+      chroma: 0.0003 + 0.005 * f.beatPulse * f.beatPulse + 0.012 * glitch,
       segs: 6 + 2 * (Math.floor(U.uHue.value * 2) % 3),
       trans, look, beat: f.beatPulse,
     });
@@ -226,8 +226,8 @@ function frame(nowMs) {
   if (fpsAcc > 2) {
     const fps = fpsN / fpsAcc;
     if (!state.frozen && !document.hidden && t - fpsT > 3) {
-      if (fps < 52 && state.quality > 0.5) { state.quality = Math.max(0.5, state.quality * 0.85); resize(); fpsT = t; }
-      else if (fps > 59 && state.quality < 1) { state.quality = Math.min(1, state.quality * 1.08); resize(); fpsT = t; }
+      if (fps < 45 && state.quality > 0.75) { state.quality = Math.max(0.75, state.quality * 0.92); resize(); fpsT = t; }
+      else if (fps > 56 && state.quality < 1) { state.quality = Math.min(1, state.quality * 1.1); resize(); fpsT = t; }
     }
     fpsAcc = 0; fpsN = 0;
   }

@@ -18,7 +18,7 @@ class Base {
 // ── 1. LIQUID ─ domain-warped colour melt + glowing particles + beams ─────────
 export class Liquid extends Base {
   constructor() {
-    super('liquid', { feedback: .22, zoom: .006, warp: .6, hueShift: 0 });
+    super('liquid', { feedback: .1, zoom: .003, warp: 0, hueShift: 0 });
     this.scene.add(bgQuad(/* glsl */ `
       void main() {
         vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
@@ -57,7 +57,7 @@ export class Liquid extends Base {
 // ── 2. KALEIDO ─ folded neon fractal mandala ─────────────────────────────────
 export class Kaleido extends Base {
   constructor() {
-    super('kaleido', { feedback: .5, zoom: -.012, rotate: .004, hueShift: .02, warp: .2 });
+    super('kaleido', { feedback: .3, zoom: -.006, rotate: .003, hueShift: .015, warp: 0 });
     this.scene.add(bgQuad(/* glsl */ `
       void main() {
         vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
@@ -89,7 +89,7 @@ export class Kaleido extends Base {
 // ── 3. TUNNEL ─ hexagonal neon tunnel, light streaks flying past ─────────────
 export class Tunnel extends Base {
   constructor() {
-    super('tunnel', { feedback: .45, zoom: .02, hueShift: .01, warp: .2 });
+    super('tunnel', { feedback: .25, zoom: .012, hueShift: .01, warp: 0 });
     this.scene.add(bgQuad(/* glsl */ `
       void main() {
         vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
@@ -131,7 +131,7 @@ export class Tunnel extends Base {
 // ── 4. GEOMETRY ─ deforming wireframe forms with heavy feedback trails ──────
 export class Geometry extends Base {
   constructor() {
-    super('geometry', { feedback: .86, zoom: .012, rotate: .006, hueShift: .025, warp: .8, bloom: 1.1 });
+    super('geometry', { feedback: .6, zoom: .008, rotate: .004, hueShift: .02, warp: .15, bloom: .9 });
     this.scene.add(bgQuad(/* glsl */ `
       void main() {
         vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
@@ -183,7 +183,7 @@ export class Geometry extends Base {
 // ── 5. SWARM ─ 32k particles snap into formations on beats, then scatter ─────
 export class Swarm extends Base {
   constructor() {
-    super('swarm', { feedback: .7, zoom: .004, rotate: -.003, hueShift: .015, warp: .4 });
+    super('swarm', { feedback: .35, zoom: .002, rotate: -.002, hueShift: .01, warp: 0 });
     this.scene.add(bgQuad(/* glsl */ `
       void main() {
         vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;

@@ -41,7 +41,7 @@ void main() {
   c += texture2D(tSrc, vUv + uTexel * vec2( 1.,  1.)).rgb;
   c *= .25;
   float l = max(c.r, max(c.g, c.b));
-  gl_FragColor = vec4(c * smoothstep(.75, 1.8, l), 1.);
+  gl_FragColor = vec4(c * smoothstep(.9, 2., l), 1.);
 }`;
 
 const BLUR_FRAG = /* glsl */ `
@@ -108,14 +108,14 @@ void main() {
   }
 
   vec2 d = uv - .5;
-  float amt = uChroma * (1. + length(d) * 2.5) * (is(uLook, 5.) ? 4. : 1.);
+  float amt = uChroma * (1. + length(d) * 2.5) * (is(uLook, 5.) ? 2.5 : 1.);
   vec2 off = d * amt + vec2(amt * g * 3., 0.);
   vec3 c = samp(uv, off);
   if (is(tt, 3.) && g > .01) {                          // radial blur for the zoom punch
     for (float i = 1.; i < 6.; i++) c += samp(uv - d * i * .035 * g, off);
     c /= 6.;
   }
-  c += sampB(uv, off) * uBloom * .55 * (1. + uBass * .6);
+  c += sampB(uv, off) * uBloom * .35 * (1. + uBass * .5);
   c *= 1. + uFlash * .25;
   if (is(tt, 3.)) c += g * g * .8;                      // white burst
   c *= 1. - dot(d, d) * .85;
@@ -127,7 +127,7 @@ void main() {
   c = mix(vec3(dot(c, vec3(.299, .587, .114))), c, 1.15);
   if (is(uLook, 4.)) c = floor(c * 5. + .5) / 5.;                       // posterize with the pixel look
   if (is(uLook, 3.)) c = mix(c, vec3(1.) - c, step(.7, uBeat));         // invert strobe on kicks
-  c += (h(uv * uRes + fract(uTime)) - .5) * .035;
+  c += (h(uv * uRes + fract(uTime)) - .5) * .012;
   gl_FragColor = vec4(c, 1.);
 }`;
 
@@ -135,7 +135,7 @@ export class Post {
   constructor(renderer) {
     this.r = renderer;
     const rtOpts = { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
-    this.cur = new THREE.WebGLRenderTarget(1, 1, { ...rtOpts, depthBuffer: true, samples: 0 });
+    this.cur = new THREE.WebGLRenderTarget(1, 1, { ...rtOpts, depthBuffer: true, samples: 4 });
     this.feed = [new THREE.WebGLRenderTarget(1, 1, rtOpts), new THREE.WebGLRenderTarget(1, 1, rtOpts)];
     this.bloomA = new THREE.WebGLRenderTarget(1, 1, rtOpts);
     this.bloomB = new THREE.WebGLRenderTarget(1, 1, rtOpts);
@@ -167,7 +167,7 @@ export class Post {
     this.w = w; this.h = h;
     this.cur.setSize(w, h);
     this.feed.forEach(t => t.setSize(w, h));
-    const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2);
+    const bw = Math.max(1, w >> 1), bh = Math.max(1, h >> 1);
     this.bloomA.setSize(bw, bh);
     this.bloomB.setSize(bw, bh);
     this.bw = bw; this.bh = bh;

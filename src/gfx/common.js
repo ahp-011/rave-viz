@@ -94,4 +94,4 @@ export class PaletteMixer {
 }
 
 // Default post/feedback settings; scenes override what they need
-export const FX_DEFAULT = { feedback: 0.6, zoom: 0.004, rotate: 0.0, warp: 0.3, hueShift: 0.004, bloom: 0.9 };
+export const FX_DEFAULT = { feedback: 0.3, zoom: 0.003, rotate: 0.0, warp: 0, hueShift: 0.004, bloom: 0.7 };

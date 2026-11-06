@@ -26,7 +26,7 @@ const pointFrag = /* glsl */ `
   varying vec3 vC; varying float vB;
   void main() {
     vec2 c = gl_PointCoord - .5;
-    gl_FragColor = vec4(vC * vB * (1. - smoothstep(.2, .5, length(c))), 1.);
+    gl_FragColor = vec4(vC * vB * (1. - smoothstep(.38, .5, length(c))), 1.);
   }`;
 
 function pointsMat(vertexShader, extra = {}) {
@@ -41,7 +41,7 @@ function pointsMat(vertexShader, extra = {}) {
 // ── RIPPLE ─ a vertical stack of particle ripple pools ─────────────────────
 export class Ripple extends Base {
   constructor() {
-    super('ripple', { feedback: .35, zoom: .0, warp: .1, bloom: .8 });
+    super('ripple', { feedback: .15, zoom: 0, warp: 0, bloom: .6 });
     this.scene.add(blackBg());
     const LENSES = 5, RINGS = 90, PER = 820;
     const data = [];
@@ -95,7 +95,7 @@ export class Ripple extends Base {
 // ── ORGANISM ─ breathing, deforming particle sphere ────────────────────────
 export class Organism extends Base {
   constructor() {
-    super('organism', { feedback: .25, zoom: .002, warp: 0, bloom: .9 });
+    super('organism', { feedback: .1, zoom: .001, warp: 0, bloom: .7 });
     this.scene.add(blackBg());
     const N = 150000, SHELLS = 6;
     const pos = new Float32Array(N * 3), data = new Float32Array(N * 4);
@@ -140,7 +140,7 @@ export class Organism extends Base {
 // ── FOOTAGE ─ your images / videos as B&W VHS with RGB split ───────────────
 export class Footage extends Base {
   constructor() {
-    super('footage', { feedback: .55, zoom: .004, warp: .2, bloom: .5 });
+    super('footage', { feedback: .25, zoom: .002, warp: 0, bloom: .3 });
     this.clips = [];       // { tex, aspect, video? }
     this.idx = 0;
     this.beats = 0;
@@ -166,13 +166,13 @@ export class Footage extends Base {
         vec2 uv = gl_FragCoord.xy / uRes;
         uv = (uv - .5) * (1. - uBass * .07 - uBeat * .04) + .5;
         float line = floor(uv.y * uRes.y / 3.);
-        uv.x += (hash(vec2(line, floor(uTime * 20.))) - .5) * .005 * (.3 + uHigh * 2.);
+        uv.x += (hash(vec2(line, floor(uTime * 20.))) - .5) * .0015 * (.3 + uHigh * 2.);
         if (hash(vec2(floor(uTime * 8.), 2.)) < uDrop * .6) uv.y = fract(uv.y + uDrop * .3);
-        float o = .003 + .022 * uBeat + .008 * uHigh + .04 * uDrop;
+        float o = .001 + .018 * uBeat * uBeat + .04 * uDrop;
         vec3 col = vec3(src(uv + vec2(o, o * .2)), src(uv), src(uv - vec2(o, o * .2)));
         col = smoothstep(.04, .96, col);
         col *= .9 + .1 * sin(gl_FragCoord.y * 1.4);
-        col += (hash(gl_FragCoord.xy + fract(uTime) * 100.) - .5) * .09;
+        col += (hash(gl_FragCoord.xy + fract(uTime) * 100.) - .5) * .035;
         col *= vec3(.95, .95, 1.05);
         gl_FragColor = vec4(col, 1.);
       }`);
@@ -212,7 +212,7 @@ export class Footage extends Base {
 // ── TERRAIN ─ scrolling ridgelines of the live spectrum ────────────────────
 export class Terrain extends Base {
   constructor() {
-    super('terrain', { feedback: .2, zoom: 0, warp: 0, bloom: .7 });
+    super('terrain', { feedback: 0, zoom: 0, warp: 0, bloom: .5 });
     this.scene.add(blackBg());
     const COLS = 160, ROWS = 70;
     this.COLS = COLS; this.ROWS = ROWS;

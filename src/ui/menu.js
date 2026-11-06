@@ -23,6 +23,7 @@ export class Menu {
         <span>1–9</span> / <span>← →</span> scene &nbsp; <span>A</span> auto-switch<br>
         <span>C</span> colours &nbsp; <span>L</span> new look &nbsp; <span>K</span> kaleido &nbsp; <span>G</span> cut fx<br>
         <span>↑ ↓</span> sensitivity &nbsp; <span>Space</span> hold &nbsp; <span>P</span> pause<br>
+        <span>X</span> club mode &nbsp; <span>S</span> strobes<br>
         <span>T</span> tap tempo &nbsp; <span>B</span> beat is now &nbsp; <span>[ ]</span> sync ±10ms
       </div>`;
     document.body.appendChild(el);

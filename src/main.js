@@ -6,6 +6,7 @@ import { Menu } from './ui/menu.js';
 import { U, PaletteMixer, FX_DEFAULT } from './gfx/common.js';
 import { Post } from './gfx/post.js';
 import { SCENES } from './scenes/index.js';
+import { ClubDirector } from './gfx/club.js';
 
 // ── state ─────────────────────────────────────────────
 const store = {
@@ -58,6 +59,9 @@ menu.onFootage = async files => {
 };
 let active = scenes[0];
 const palette = new PaletteMixer();
+const club = new ClubDirector();
+club.enabled = store.get('club', true);
+club.strobeOn = store.get('strobe', true);
 const fx = { ...FX_DEFAULT, ...active.fx };
 let glitch = 0, flash = 0, kaleidoMix = 0, pendingScene = -1, lastSwitch = 0;
 
@@ -137,6 +141,8 @@ window.addEventListener('keydown', e => {
     store.set('sens', state.sensitivity);
   }
   else if (k === ' ') state.frozen = !state.frozen;
+  else if (k === 'x' || k === 'X') store.set('club', club.enabled = !club.enabled);
+  else if (k === 's' || k === 'S') store.set('strobe', club.strobeOn = !club.strobeOn);
   else if (k === 't' || k === 'T') analyzer.tap(performance.now() / 1000);
   else if (k === 'b' || k === 'B') analyzer.resync(performance.now() / 1000);
   else if (k === '[' || k === ']') {
@@ -211,6 +217,7 @@ function frame(nowMs) {
     hueShift: fx.hueShift * (1 + f.energy * 2),
   };
 
+  const clubU = club.update(f, dt, t);
   if (!state.frozen) {
     active.update(f, dt, t, analyzer);
     post.render(active.scene, active.camera, fxNow, {
@@ -218,6 +225,7 @@ function frame(nowMs) {
       chroma: 0.0003 + 0.005 * f.beatPulse * f.beatPulse + 0.012 * glitch,
       segs: 6 + 2 * (Math.floor(U.uHue.value * 2) % 3),
       trans, look, beat: f.beatPulse,
+      club: clubU,
     });
   }
 

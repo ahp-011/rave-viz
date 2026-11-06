@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FS_VERT } from './common.js';
+import { CLUB_GLSL } from './club.js';
 
 // Pipeline per frame:
 //   scene ─► cur ─┐
@@ -63,12 +64,15 @@ uniform vec2 uRes;
 varying vec2 vUv;
 ${HASH}
 bool is(float v, float k) { return abs(v - k) < .5; }
+${CLUB_GLSL}
 vec3 samp(vec2 uv, vec2 off) { return vec3(texture2D(tFeed, uv + off).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - off).b); }
 vec3 sampB(vec2 uv, vec2 off) { return vec3(texture2D(tBloom, uv + off).r, texture2D(tBloom, uv).g, texture2D(tBloom, uv - off).b); }
 void main() {
   vec2 uv = vUv;
   float asp = uRes.x / uRes.y;
   float g = uGlitch, tt = uTransType;
+  // club: the whole room pumps a little on the kick
+  uv = (uv - .5) * (1. - .012 * uBeat * uClub) + .5;
 
   // ── look modifiers (one per scene visit, never the same twice in a row) ──
   if (is(uLook, 1.)) uv.x = .5 - abs(uv.x - .5);                       // mirror
@@ -121,12 +125,15 @@ void main() {
   c *= 1. - dot(d, d) * .85;
   if (is(tt, 0.) && g > .25 && h(floor(uv * vec2(14., 22.)) + floor(uTime * 20.)) < g * .12) c = vec3(1.2) - c;
   if (is(tt, 4.) && g > .6) c = vec3(1.) - c;
+  if (uClub > .001) c = clubLights(vUv, c);
 
   float L = max(c.r, max(c.g, c.b));
   c *= (1. - exp(-L * 1.4)) / max(L, 1e-4);
   c = mix(vec3(dot(c, vec3(.299, .587, .114))), c, 1.15);
   if (is(uLook, 4.)) c = floor(c * 5. + .5) / 5.;                       // posterize with the pixel look
   if (is(uLook, 3.)) c = mix(c, vec3(1.) - c, step(.7, uBeat));         // invert strobe on kicks
+  c = mix(c, vec3(1.), uStrobe);
+  if (uClub > .001) c = mix(c, clubCrowd(vUv, c), uClub);
   c += (h(uv * uRes + fract(uTime)) - .5) * .012;
   gl_FragColor = vec4(c, 1.);
 }`;
@@ -160,6 +167,10 @@ export class Post {
       uTime: { value: 0 }, uBass: { value: 0 }, uBloom: { value: .9 }, uSegs: { value: 8 },
       uRes: { value: new THREE.Vector2(1, 1) },
       uTransType: { value: 0 }, uLook: { value: 0 }, uBeat: { value: 0 },
+      uClub: { value: 0 }, uBeamAng: { value: [0, 0, 0, 0, 0, 0] }, uBeamI: { value: [0, 0, 0, 0, 0, 0] },
+      uColA: { value: new THREE.Vector3() }, uColB: { value: new THREE.Vector3() }, uLaserCol: { value: new THREE.Vector3() },
+      uLaserRot: { value: 0 }, uLaserSpread: { value: 0 }, uLaserI: { value: 0 }, uLaserN: { value: 0 }, uStrobe: { value: 0 },
+      uHands: { value: 0 }, uJump: { value: 0 }, uBeatPhase: { value: 0 }, uLightAmt: { value: 0 },
     });
   }
 
@@ -209,6 +220,14 @@ export class Post {
     u.uGlitch.value = fin.glitch; u.uFlash.value = fin.flash; u.uKaleido.value = fin.kaleido;
     u.uChroma.value = fin.chroma; u.uTime.value = fin.time; u.uBass.value = fin.bass;
     u.uBloom.value = fx.bloom; u.uSegs.value = fin.segs;
+    if (fin.club) {
+      for (const key in fin.club) {
+        const v = fin.club[key], tgt = u[key];
+        if (!tgt) continue;
+        if (tgt.value && tgt.value.isVector3) tgt.value.fromArray(v);
+        else tgt.value = v;
+      }
+    }
     u.uTransType.value = fin.trans; u.uLook.value = fin.look; u.uBeat.value = fin.beat;
     this._pass(this.mFinal, null);
   }

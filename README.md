@@ -28,7 +28,7 @@ Open the printed URL in **Chrome** (best support for tab-audio capture). Run `np
 | A | auto-switch scene on drops |
 | F | fullscreen |
 | Space | hold frame |
-| X | club mode on/off (lights, lasers, crowd) |
+| X | club mode on/off (lights, lasers, strobes) |
 | S | strobes on/off |
 | T | tap tempo (3+ taps) — locks the beat grid to your taps |
 | B | "beat is now" — snap the grid to the kick you hear |
@@ -42,4 +42,3 @@ Your visuals become the LED wall behind the DJ, with the room in front of it:
 - 6 moving-head spotlights on a truss sweeping through haze (fan, cross, sweep, chase, ballyhoo), switching pattern every 16 beats and on drops
 - a laser fan from behind the crowd that snaps to the beat, opening wider as the energy rises; off in breakdowns
 - strobes: a 1.2 s burst on drops and rising strobes during build-ups (max 12 Hz). **Press S to turn strobes off** if anyone watching is sensitive to flashing light.
-- a three-row crowd that bounces on the beat, throws hands up as the track builds and drops, and has a few phones out filming

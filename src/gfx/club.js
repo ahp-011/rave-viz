@@ -3,7 +3,6 @@
 //   • 6 moving-head spotlights on a truss, sweeping through haze in patterns
 //   • a laser fan from behind the crowd, snapping to the beat
 //   • strobes on drops and build-ups
-//   • a crowd silhouette that bounces on the beat and throws hands up on drops
 // Everything is drawn in the final post pass (screen space, cheap).
 
 export const BEAMS = 6;
@@ -69,83 +68,6 @@ vec3 clubLights(vec2 uv, vec3 c) {
   return c * mix(1., .72, uClub) + add * uClub;
 }
 
-float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
-float sdSeg(vec2 p, vec2 a, vec2 b, float r) { vec2 pa = p - a, ba = b - a; float t = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.); return length(pa - ba * t) - r; }
-float smin(float a, float b, float k) { float hh = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, hh) - k * hh * (1. - hh); }
-
-// one person, local coords (feet ~ y=-.1, head top ~ y=.36). Returns SDF; writes phone-screen SDF.
-float person(vec2 q, float s1, float s2, float s3, float s4, out float phone) {
-  phone = 1e3;
-  float d = sdBox(q - vec2(0., .06), vec2(.048 + .01 * s2, .16), .035);              // torso
-  d = smin(d, sdSeg(q, vec2(-.058 - .01 * s2, .205), vec2(.058 + .01 * s2, .205), .034), .03); // shoulders
-  d = smin(d, sdSeg(q, vec2(0., .22), vec2(0., .27), .018), .02);                     // neck
-  vec2 hq = q - vec2(.004 * (s3 - .5), .305);
-  d = smin(d, length(hq * vec2(1., .88)) - .043, .015);                              // head
-  if (s1 > .78) d = min(d, length(q - vec2(.02 - .04 * s3, .35)) - .022);            // bun / hair
-  if (s4 < uHands) {
-    float t = 6.28318 * uBeatPhase + s1 * 6.;
-    for (int side = 0; side < 2; side++) {
-      float sg = side == 0 ? -1. : 1.;
-      vec2 sh = vec2(sg * (.06 + .01 * s2), .215);
-      // upper arm up and out, forearm bending in, waving on the beat
-      float a1 = sg * (.35 + .25 * s3) + .18 * sin(t + sg) * sg;
-      float a2 = a1 - sg * (.25 + .3 * s2) + .25 * sin(t * .5 + s3 * 3.);
-      if (side == 1 && s3 > .72) { a1 = .12; a2 = -.05; }                              // straight-arm point
-      vec2 el = sh + .105 * vec2(sin(a1), cos(a1));
-      vec2 hd = el + .1 * vec2(sin(a2), cos(a2));
-      d = min(d, sdSeg(q, sh, el, .017));
-      d = min(d, sdSeg(q, el, hd, .014));
-      d = min(d, length(q - hd) - .017);
-      if (side == 1 && s1 < .14) {                                                   // filming on a phone
-        vec2 pq = q - hd - vec2(0., .028);
-        d = min(d, sdBox(pq, vec2(.015, .025), .004));
-        phone = sdBox(pq, vec2(.011, .02), .003);
-      }
-    }
-  }
-  return d;
-}
-
-// crowd silhouettes (after tonemap): three depth rows, rim light from the rig, phone screens
-vec3 clubCrowd(vec2 uv, vec3 c) {
-  float asp = uRes.x / uRes.y;
-  vec2 P = vec2((uv.x - .5) * asp, uv.y);
-  if (P.y > .6) return c;
-  vec3 light = mix(uColA, uColB, .5) * uLightAmt;
-
-  for (int row = 0; row < 3; row++) {
-    float fr = float(row);
-    float n = row == 0 ? 22. : row == 1 ? 15. : 10.;
-    float sc = row == 0 ? .42 : row == 1 ? .6 : .82;
-    float base = row == 0 ? .17 : row == 1 ? .08 : -.06;
-    // farther rows fade into the lit haze
-    vec3 sil = row == 0 ? light * .07 + .015 : row == 1 ? light * .025 + .006 : vec3(.003);
-    float cell = asp * 1.15 / n;
-    for (int i = 0; i < 22; i++) {
-      float fi = float(i);
-      if (fi >= n) break;
-      float s1 = h(vec2(fi, fr + 1.)), s2 = h(vec2(fi + 7., fr + 3.)), s3 = h(vec2(fi + 3., fr + 9.)), s4 = h(vec2(fi + 11., fr + 5.));
-      float x = ((fi + .5 + (s1 - .5) * .8) / n - .5) * asp * 1.15;
-      if (abs(P.x - x) > .25 * sc) continue;                     // cheap reject
-      float ph = uBeatPhase + s2 * .12;                          // not everyone lands at once
-      float jump = uJump * pow(abs(sin(3.14159 * ph)), 2.) * (.5 + .5 * s3) * .04 * sc;
-      vec2 q = (P - vec2(x, base + jump)) / sc;
-      q.x += sin(uTime * 1.3 + s1 * 9.) * .008;                  // sway
-      q.y /= .9 + .18 * s2;
-      float phone;
-      float d = person(q, s1, s2, s3, s4, phone);
-      float px = 1.2 / uRes.y / sc;
-      float a = smoothstep(px, -px, d);
-      float rim = smoothstep(-px * 4., 0., d) * a * smoothstep(.12, .3, q.y);
-      c = mix(c, sil, a);
-      c += light * rim * (.18 + .35 * uBeat) * (row == 2 ? 1. : .5);
-      float scr = smoothstep(px, -px, phone);
-      c = mix(c, vec3(.78, .86, 1.) * (.85 + .15 * uBeat), scr);
-    }
-  }
-  c *= mix(1., smoothstep(-.06, .18, P.y) * .75 + .25, uClub);    // floor falls into darkness
-  return c;
-}
 `;
 
 const SCHEMES = [

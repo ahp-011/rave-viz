@@ -133,7 +133,6 @@ void main() {
   if (is(uLook, 4.)) c = floor(c * 5. + .5) / 5.;                       // posterize with the pixel look
   if (is(uLook, 3.)) c = mix(c, vec3(1.) - c, step(.7, uBeat));         // invert strobe on kicks
   c = mix(c, vec3(1.), uStrobe);
-  if (uClub > .001) c = mix(c, clubCrowd(vUv, c), uClub);
   c += (h(uv * uRes + fract(uTime)) - .5) * .012;
   gl_FragColor = vec4(c, 1.);
 }`;

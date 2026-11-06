@@ -1,0 +1,5 @@
+node_modules
+dist
+dist-artifact
+rave-visualizer.html
+rave-visualizer-standalone.html

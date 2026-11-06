@@ -82,6 +82,10 @@ export class DebugOverlay {
     g.fillStyle = '#8a8c92';
     g.fillText('BPM', lx + 70, 32);
     g.fillText(`conf ${(f.bpmConfidence * 100).toFixed(0)}%`, lx + 70, 46);
+    g.fillStyle = f.locked ? '#9b87ff' : '#6c6e74';
+    g.fillText(f.locked ? 'LOCKED' : 'free', lx + 118, 32);
+    g.fillStyle = '#8a8c92';
+    g.fillText(`sync ${(state.offset || 0) >= 0 ? '+' : ''}${state.offset || 0}ms`, lx + 118, 46);
 
     // beat-phase bar
     g.fillStyle = '#222428';

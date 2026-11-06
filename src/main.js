@@ -33,6 +33,8 @@ const post = new Post(renderer);
 const input = new AudioInput();
 const analyzer = new Analyzer();
 analyzer.sensitivity = state.sensitivity;
+state.offset = store.get('offset', 0);
+analyzer.syncOffset = state.offset / 1000;
 const menu = new Menu(input);
 const _onchange = input.onchange;
 input.onchange = label => {
@@ -40,6 +42,8 @@ input.onchange = label => {
   state.source = label;
   if (input.analyser && analyzer.analyser !== input.analyser) analyzer.attach(input.analyser);
 };
+
+input.onOnset = ev => analyzer.queueOnset(ev);
 
 const overlay = new DebugOverlay();
 overlay.setVisible(store.get('debug', false));
@@ -129,9 +133,17 @@ window.addEventListener('keydown', e => {
   else if (k === 'ArrowUp' || k === 'ArrowDown') {
     const s = state.sensitivity * (k === 'ArrowUp' ? 1.1 : 1 / 1.1);
     state.sensitivity = analyzer.sensitivity = Math.min(4, Math.max(0.25, s));
+    input.setSensitivity(state.sensitivity);
     store.set('sens', state.sensitivity);
   }
   else if (k === ' ') state.frozen = !state.frozen;
+  else if (k === 't' || k === 'T') analyzer.tap(performance.now() / 1000);
+  else if (k === 'b' || k === 'B') analyzer.resync(performance.now() / 1000);
+  else if (k === '[' || k === ']') {
+    state.offset = Math.max(-200, Math.min(300, (state.offset || 0) + (k === ']' ? 10 : -10)));
+    analyzer.syncOffset = state.offset / 1000;
+    store.set('offset', state.offset);
+  }
   else return;
   e.preventDefault();
 });

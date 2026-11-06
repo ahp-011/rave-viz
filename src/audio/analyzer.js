@@ -103,6 +103,16 @@ export class Analyzer {
     this.bpm = 0;
     this.bpmConfidence = 0;
 
+    // onsets from the audio-thread worklet (precise timestamps, frame-rate independent)
+    this.onsets = [];
+    this.useWorklet = false;
+    // beat clock: locks to the tempo and fires beats on the predicted grid,
+    // phase-corrected by every kick that lands near a predicted beat
+    this.clock = { next: 0, period: 0, lastMatch: -1e9, locked: false };
+    this.syncOffset = 0;        // seconds; positive = flash earlier (projector / Bluetooth delay)
+    this.manualUntil = 0;
+    this.taps = [];
+
     // drop detection: 10 Hz history of raw bass + rms energy, 20 s long
     this.dropHist = [];
     this.dropAcc = 0;
@@ -120,7 +130,7 @@ export class Analyzer {
       raw: { bass: 0, lowMid: 0, highMid: 0, treble: 0, energy: 0 },
       beat: false, beatPulse: 0, hat: false, hatPulse: 0,
       drop: false, dropPulse: 0,
-      bpm: 0, bpmConfidence: 0, beatPhase: 0,
+      bpm: 0, bpmConfidence: 0, beatPhase: 0, locked: false,
       active: false,
     };
   }
@@ -196,22 +206,23 @@ export class Analyzer {
       f[k] = this.env[k].push(n, dt);
     }
 
-    // beats (kick-ish onsets), gated so noise in silence doesn't fire
-    if (this.beatDet.push(bassFlux, dt, now, sens) && f.raw.bass > 0.2) {
-      f.beat = true;
-      f.beatPulse = 1;
-      this._registerBeat(now);
+    const lead = this.syncOffset + 0.03; // fire ~2 frames ahead: rendering + display scan-out delay
+    const fftKick = this.beatDet.push(bassFlux, dt, now, sens) && f.raw.bass > 0.2;
+    const fftHat = this.hatDet.push(trebleFlux, dt, now, sens) && f.raw.treble > 0.15;
+    if (this.useWorklet) {
+      // consume worklet onsets once their (latency-compensated) time arrives
+      while (this.onsets.length && this.onsets[0].time - lead <= now) {
+        const ev = this.onsets.shift();
+        if (now - ev.time > 0.5) continue; // stale (tab was hidden)
+        if (ev.kind === 'hat') { f.hat = true; f.hatPulse = Math.min(1, .5 + ev.strength * .25); }
+        else if (f.active) this._onKick(ev.time, now);
+      }
+    } else {
+      // fallback: frame-based FFT detection
+      if (fftKick) this._onKick(now, now);
+      if (fftHat) { f.hat = true; f.hatPulse = 1; }
     }
-    if (this.hatDet.push(trebleFlux, dt, now, sens) && f.raw.treble > 0.15) {
-      f.hat = true;
-      f.hatPulse = 1;
-    }
-
-    // beat phase from BPM (useful for smooth, on-grid motion)
-    if (this.bpm > 0) {
-      const period = 60 / this.bpm;
-      f.beatPhase = ((now - this.beatDet.last) / period) % 1;
-    }
+    this._runClock(now, lead);
 
     this._updateDrop(dt, now, raw.bass, rms, f);
 
@@ -226,11 +237,86 @@ export class Analyzer {
     return f;
   }
 
+  queueOnset(ev) {
+    this.useWorklet = true;
+    this.onsets.push(ev);
+    this.onsets.sort((a, b) => a.time - b.time);
+  }
+
+  _fire() {
+    this.f.beat = true;
+    this.f.beatPulse = 1;
+  }
+
+  _onKick(t, now) {
+    this._registerBeat(t);
+    const c = this.clock;
+    if (c.locked) {
+      // nearest predicted beat: the one just fired or the upcoming one
+      const prev = c.next - c.period;
+      const err = Math.abs(t - prev) < Math.abs(t - c.next) ? t - prev : t - c.next;
+      if (Math.abs(err) < 0.2 * c.period) {
+        c.next += err * 0.35;            // pull the grid toward the real kick
+        c.lastMatch = t;
+      }
+      return;                             // the clock fires the beat, on time
+    }
+    this._fire();                         // not locked yet: react directly
+    if (this.bpm && this.bpmConfidence > 0.3) {
+      c.period = 60 / this.bpm;
+      c.next = t + c.period;
+      c.lastMatch = t;
+      c.locked = true;
+    }
+  }
+
+  _runClock(now, lead) {
+    const c = this.clock, f = this.f;
+    if (c.locked) {
+      if (this.bpm && now > this.manualUntil) c.period += (60 / this.bpm - c.period) * 0.05;
+      // kicks stopped (breakdown) or tempo changed: unlock, react directly again
+      if (now - c.lastMatch > 2.5 * c.period && now > this.manualUntil) c.locked = false;
+      else if (now >= c.next - lead) {
+        this._fire();
+        c.next += c.period;
+        while (c.next - lead <= now) c.next += c.period;
+      }
+      f.beatPhase = clamp01(1 - (c.next - lead - now) / c.period);
+    } else if (this.bpm) {
+      const last = this.beatTimes[this.beatTimes.length - 1] || 0;
+      f.beatPhase = ((now - last) / (60 / this.bpm)) % 1;
+    }
+    f.locked = c.locked;
+  }
+
+  // T key: tap along to the beat (3+ taps set tempo and phase)
+  tap(now) {
+    const taps = this.taps;
+    if (taps.length && now - taps[taps.length - 1] > 2) taps.length = 0;
+    taps.push(now);
+    if (taps.length > 8) taps.shift();
+    this._fire();
+    if (taps.length < 3) return;
+    const period = (taps[taps.length - 1] - taps[0]) / (taps.length - 1);
+    this.bpm = 60 / period;
+    this.bpmConfidence = 1;
+    const c = this.clock;
+    c.period = period; c.next = now + period; c.lastMatch = now; c.locked = true;
+    this.manualUntil = now + 8 * period;
+  }
+
+  // B key: "this is the beat" — snap the grid's phase to now
+  resync(now) {
+    const c = this.clock;
+    this._fire();
+    if (c.locked) { c.next = now + c.period; c.lastMatch = now; }
+  }
+
   _registerBeat(now) {
     const t = this.beatTimes;
     t.push(now);
     while (t.length && now - t[0] > 12) t.shift();
-    if (t.length < 5) return;
+    if (t.length < 5 || now < this.manualUntil) return;
 
     // histogram of beat intervals (consecutive + skip-one), folded into 85–175 BPM
     const scores = new Float32Array(91); // 85..175

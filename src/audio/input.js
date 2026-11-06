@@ -1,3 +1,5 @@
+import { ONSET_WORKLET } from './onset-worklet.js';
+
 // Audio source management: mic / line-in, dropped files, browser-tab capture.
 // Everything feeds one AnalyserNode. Only file playback is routed to the
 // speakers. Live inputs are never monitored, which avoids feedback.
@@ -21,9 +23,49 @@ export class AudioInput {
       this.analyser.smoothingTimeConstant = 0; // we do our own smoothing; flux needs raw frames
       this.analyser.minDecibels = -110;
       this.analyser.maxDecibels = -10;
+      // every source feeds this bus; the bus feeds the FFT analyser and the onset worklet
+      this.bus = this.ctx.createGain();
+      this.bus.connect(this.analyser);
+      this._loadWorklet();
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
+  }
+
+  async _loadWorklet() {
+    try {
+      const url = URL.createObjectURL(new Blob([ONSET_WORKLET], { type: 'text/javascript' }));
+      await this.ctx.audioWorklet.addModule(url);
+      const node = new AudioWorkletNode(this.ctx, 'onset-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+      // a muted path to the speakers keeps the worklet being processed
+      const mute = this.ctx.createGain();
+      mute.gain.value = 0;
+      node.connect(mute).connect(this.ctx.destination);
+      this.bus.connect(node);
+      node.port.postMessage({ sens: this.sensitivity || 1 });
+      node.port.onmessage = e => this._onOnset(e.data);
+      this.worklet = node;
+      this.workletActive = true;
+    } catch (err) {
+      console.warn('Onset worklet unavailable, using FFT beat detection', err);
+      this.workletActive = false;
+    }
+  }
+
+  // Convert the audio-thread timestamp to the performance clock.
+  // For sound we play ourselves (files/demo) add the output latency, so the
+  // flash lands when the kick comes out of the speakers, not when we analysed it.
+  _onOnset(ev) {
+    const ctx = this.ctx;
+    const age = ctx.currentTime - ev.t;
+    const outLat = this.monitored ? (ctx.outputLatency || ctx.baseLatency || 0) : 0;
+    const time = performance.now() / 1000 - age + outLat;
+    this.onOnset && this.onOnset({ kind: ev.kind, time, strength: ev.strength });
+  }
+
+  setSensitivity(s) {
+    this.sensitivity = s;
+    this.worklet && this.worklet.port.postMessage({ sens: s });
   }
 
   _teardown() {
@@ -64,8 +106,9 @@ export class AudioInput {
     this._teardown();
     this.stream = stream;
     this.source = ctx.createMediaStreamSource(stream);
-    this.source.connect(this.analyser);
+    this.source.connect(this.bus);
     const track = stream.getAudioTracks()[0];
+    this.monitored = false;
     this._set('mic: ' + (track?.label || 'default'));
   }
 
@@ -89,8 +132,9 @@ export class AudioInput {
     this._teardown();
     this.stream = new MediaStream(audioTracks);
     this.source = ctx.createMediaStreamSource(this.stream);
-    this.source.connect(this.analyser);
+    this.source.connect(this.bus);
     audioTracks[0].addEventListener('ended', () => this._set('tab capture ended'));
+    this.monitored = false;
     this._set('tab: ' + (audioTracks[0].label || 'shared audio'));
   }
 
@@ -103,9 +147,10 @@ export class AudioInput {
     el.crossOrigin = 'anonymous';
     this.mediaEl = el;
     this.source = ctx.createMediaElementSource(el);
-    this.source.connect(this.analyser);
+    this.source.connect(this.bus);
     this.source.connect(ctx.destination); // you hear files
     await el.play();
+    this.monitored = true;
     this._set('file: ' + file.name);
   }
 
@@ -121,11 +166,13 @@ export class AudioInput {
     const gain = ctx.createGain();
     gain.gain.value = 0.8;
     src.connect(gain);
-    gain.connect(this.analyser);
+    gain.connect(this.bus);
     gain.connect(ctx.destination);
     src.start();
+    this.demoStart = ctx.currentTime; // used by the timing test
     this.bufferSrc = src;
     this.source = gain;
+    this.monitored = true;
     this._set('demo: 128 BPM loop (drop at 0:26)');
   }
 

@@ -22,7 +22,8 @@ export class Menu {
         <span>M</span> menu &nbsp; <span>H</span> debug &nbsp; <span>F</span> fullscreen<br>
         <span>1–9</span> / <span>← →</span> scene &nbsp; <span>A</span> auto-switch<br>
         <span>C</span> colours &nbsp; <span>L</span> new look &nbsp; <span>K</span> kaleido &nbsp; <span>G</span> cut fx<br>
-        <span>↑ ↓</span> sensitivity &nbsp; <span>Space</span> hold &nbsp; <span>P</span> pause
+        <span>↑ ↓</span> sensitivity &nbsp; <span>Space</span> hold &nbsp; <span>P</span> pause<br>
+        <span>T</span> tap tempo &nbsp; <span>B</span> beat is now &nbsp; <span>[ ]</span> sync ±10ms
       </div>`;
     document.body.appendChild(el);
 

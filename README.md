@@ -28,3 +28,9 @@ Open the printed URL in **Chrome** (best support for tab-audio capture). Run `np
 | A | auto-switch scene on drops |
 | F | fullscreen |
 | Space | hold frame |
+| T | tap tempo (3+ taps) — locks the beat grid to your taps |
+| B | "beat is now" — snap the grid to the kick you hear |
+| [ / ] | sync offset −/+ 10 ms (if flashes feel late on a projector or Bluetooth speaker, press ]) |
+
+## Beat sync
+Kicks and hi-hats are detected on the audio thread (AudioWorklet, ~6 ms resolution), independent of frame rate. Once the tempo is known, a beat clock locks on (overlay shows LOCKED) and fires beats on the predicted grid, phase-corrected by every real kick, so flashes land on the beat rather than after it. In breakdowns without a kick it unlocks after ~2 beats.
